@@ -3,12 +3,14 @@ package nl.praseodym
 import spray.caching.{LruCache, Cache}
 import scala.util.{Success, Failure}
 import scala.concurrent.Future
+import scala.concurrent.duration._
 import akka.actor._
-import spray.can.client.HttpClient
-import spray.io._
+import spray.client.{HttpHostConnector, HttpClient}
 import spray.http._
+import akka.util.Timeout
 import HttpMethods._
-import spray.client.HttpConduit
+import spray.client.pipelining._
+import spray.http._
 
 object ApiProxy {
   import system.dispatcher
@@ -23,18 +25,14 @@ object ApiProxy {
     getFromApi(uri)
   }
 
-  def getFromApi(uri: String): Future[HttpResponse] = {
-    val system = ActorSystem("ApiProject")
-    val ioBridge = IOExtension(system).ioBridge()
-    val httpClient = system.actorOf(Props(new HttpClient(ioBridge)))
+  implicit val timeout: Timeout = 15 seconds span
+  val httpClient = system.actorOf(Props(new HttpClient), "http-client")
 
-    val conduit = system.actorOf(
-      //    props = Props(new HttpConduit(httpClient, "api.tudelft.nl", 443, sslEnabled=true)),
-      props = Props(new HttpConduit(httpClient, "localhost", 57256, sslEnabled=true)),
-      name = "http-conduit"
-    )
-    val pipeline = HttpConduit.sendReceive(conduit)
-    val response = pipeline(HttpRequest(method = GET, uri=uri))
+  def getFromApi(uri: String): Future[HttpResponse] = {
+    val pipeline = sendReceive(httpClient)
+    val response = pipeline {
+      Get("https://127.0.0.1:57256" + uri)
+    }
     response onComplete {
       case Success(response) =>
 //        log.info(

@@ -2,9 +2,11 @@ import sbt._
 import sbt.Keys._
 
 object ApiProxyBuild extends Build {
+  val akkaVersion = "2.1.1"
+  val sprayVersion = "1.1-20130207"
 
   lazy val apiProxy = Project(
-    id = "api-proxy-build",
+    id = "api-proxy",
     base = file("."),
     settings = Project.defaultSettings ++ Seq(
       name := "API Proxy",
@@ -12,13 +14,15 @@ object ApiProxyBuild extends Build {
       version := "0.1-SNAPSHOT",
       scalaVersion := "2.10.0",
       resolvers += "Typesafe Releases" at "http://repo.typesafe.com/typesafe/releases",
-      libraryDependencies += "com.typesafe.akka" % "akka-actor_2.10" % "2.1.1",
-      libraryDependencies += "com.typesafe.akka" % "akka-slf4j_2.10" % "2.1.1",
-      resolvers += "spray repo" at "http://repo.spray.io",
-      libraryDependencies += "io.spray" % "spray-can" % "1.1-M7",
-      libraryDependencies += "io.spray" % "spray-client" % "1.1-M7",
-      libraryDependencies += "io.spray" % "spray-caching" % "1.1-M7",
-      libraryDependencies += "ch.qos.logback" % "logback-classic" % "1.0.9"
+      resolvers += "spray repo" at "http://nightlies.spray.io",
+      libraryDependencies ++= Seq(
+        "ch.qos.logback" % "logback-classic" % "1.0.9",
+        "com.typesafe.akka" %% "akka-actor" % akkaVersion,
+        "com.typesafe.akka" %% "akka-slf4j" % akkaVersion,
+        "io.spray" % "spray-can" % sprayVersion,
+        "io.spray" % "spray-client" % sprayVersion,
+        "io.spray" % "spray-caching" % sprayVersion
+      )
     )
   )
 }

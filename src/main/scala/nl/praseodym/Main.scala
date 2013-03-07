@@ -3,7 +3,7 @@ package nl.praseodym
 import spray.can.server.SprayCanHttpServerApp
 import akka.actor.Props
 
-object ApiMain extends App with SprayCanHttpServerApp {
+object Main extends App with SprayCanHttpServerApp {
 
   // the handler actor replies to incoming HttpRequests
   val handler = system.actorOf(Props[ApiService])

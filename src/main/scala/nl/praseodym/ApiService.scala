@@ -17,8 +17,9 @@ import java.lang.Runnable
 
 class ApiService extends Actor with SprayActorLogging {
 //  import system.dispatcher
-
+  
   implicit val timeout = Timeout(2 seconds)
+  
   val primeCacheRunnable = new Runnable { def run() = primeCache }
 
   def receive = {
