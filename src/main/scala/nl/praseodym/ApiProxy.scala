@@ -19,6 +19,7 @@ import spray.http.HttpCharsets._
 import spray.http.HttpResponse
 import spray.http.HttpHeaders.RawHeader
 import scala.Some
+import spray.http.CacheDirectives._
 
 object ApiProxy {
   import system.dispatcher
@@ -26,7 +27,7 @@ object ApiProxy {
 
   val system = ActorSystem("ApiProxy")
   val corsHeaders = List(RawHeader("Access-Control-Allow-Origin", "*"),
-    RawHeader("Access-Control-Allow-Headers", "X-Requested-With"))
+    RawHeader("Access-Control-Allow-Headers", "X-Requested-With"), `Cache-Control`(`max-age`(30)))
   val cache: Cache[HttpResponse] = LruCache() // (timeToLive = 5 minutes)
 
   def getCached(uri: String): Future[HttpResponse] = cache.fromFuture(uri) {
