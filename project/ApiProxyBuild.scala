@@ -1,5 +1,6 @@
 import sbt._
 import sbt.Keys._
+import com.github.retronym.SbtOneJar
 
 object ApiProxyBuild extends Build {
   val akkaVersion = "2.1.1"
@@ -8,7 +9,7 @@ object ApiProxyBuild extends Build {
   lazy val apiProxy = Project(
     id = "api-proxy",
     base = file("."),
-    settings = Project.defaultSettings ++ Seq(
+    settings = Project.defaultSettings ++ SbtOneJar.oneJarSettings ++ Seq(
       name := "API Proxy",
       organization := "nl.praseodym",
       version := "0.1-SNAPSHOT",
