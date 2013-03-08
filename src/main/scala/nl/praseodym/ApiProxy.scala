@@ -1,15 +1,24 @@
 package nl.praseodym
 
 import spray.caching.{LruCache, Cache}
-import scala.util.{Success, Failure}
 import scala.concurrent.Future
-import scala.concurrent.duration._
-import akka.actor._
 import spray.client.HttpClient
-import akka.util.Timeout
 import spray.client.pipelining._
-import spray.http._
 import scala.language.postfixOps
+import util.Success
+import util.Failure
+import scala.concurrent.duration._
+import akka.util.Timeout
+import akka.actor._
+import spray.util._
+import spray.http._
+import MediaTypes._
+import scala.language.postfixOps
+import spray.http.HttpHeaders._
+import spray.http.HttpCharsets._
+import spray.http.HttpResponse
+import spray.http.HttpHeaders.RawHeader
+import scala.Some
 
 object ApiProxy {
   import system.dispatcher
@@ -17,20 +26,34 @@ object ApiProxy {
 
   val system = ActorSystem("ApiProxy")
 
+  val corsHeaders = List(RawHeader("Access-Control-Allow-Origin", "*"),
+    RawHeader("Access-Control-Allow-Headers", "X-Requested-With"))
+
 //  val cache: Cache[HttpResponse] = LruCache(timeToLive = 5 minutes)
   val cache: Cache[HttpResponse] = LruCache()
 
   def getCached(uri: String): Future[HttpResponse] = cache.fromFuture(uri) {
-    getFromApi(uri)
+    getAndRewrite(uri)
   }
 
   def refreshCached(uri: String) =
-    getFromApi(uri).onSuccess {
+    getAndRewrite(uri).onSuccess {
       case response: HttpResponse => {
         cache.remove(uri)
         cache(uri)(response)
       }
     }
+
+  def getAndRewrite(uri: String): Future[HttpResponse] = {
+    getFromApi(uri) map { case x =>
+        val contentType = x.headers.mapFind {
+          case `Content-Type`(t) => Some(t)
+          case _ => None
+        }.getOrElse(ContentType(`text/plain`, `US-ASCII`)) // RFC 2046 section 5.1
+        val headers = `Content-Type`(contentType) :: corsHeaders
+        x.withHeaders(headers)
+    }
+  }
 
   implicit val timeout: Timeout = 22 seconds
   val httpClient = system.actorOf(Props(new HttpClient), "http-client")

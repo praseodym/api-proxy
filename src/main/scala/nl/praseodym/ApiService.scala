@@ -13,22 +13,12 @@ import MediaTypes._
 import scala.language.postfixOps
 import ApiProxy._
 import java.lang.Runnable
-import spray.http.HttpHeaders._
-import spray.http.HttpHeaders.RawHeader
-import scala.Some
-import spray.http.HttpCharsets._
-import spray.http.HttpHeaders.RawHeader
-import scala.Some
 import spray.http.HttpResponse
-import spray.http.HttpHeaders.RawHeader
-import scala.Some
 
 class ApiService extends Actor with SprayActorLogging {
   implicit val timeout = Timeout(2 seconds)
   
   val cachePrimerRunnable = new Runnable { def run() = primeCache }
-  val corsHeaders = List(RawHeader("Access-Control-Allow-Origin", "*"),
-    RawHeader("Access-Control-Allow-Headers", "X-Requested-With"))
 
   def receive = {
     case HttpRequest(GET, "/server-stats", _, _, _) =>
@@ -54,19 +44,11 @@ class ApiService extends Actor with SprayActorLogging {
     case HttpRequest(GET, uri, _, _, _) if uri.startsWith("/v0") =>
       log.info("Proxy request: {}", uri)
       val client = sender
-      getCached(uri).onSuccess {
-        case x: HttpResponse =>
-          val contentType = x.headers.mapFind {
-            case `Content-Type`(t) => Some(t)
-            case _ => None
-          }.getOrElse(ContentType(`text/plain`, `US-ASCII`)) // RFC 2046 section 5.1
-          val headers = `Content-Type`(contentType) :: corsHeaders
-          client ! x.withHeaders(headers)
-      }
+      getCached(uri) onSuccess { case x => client ! x }
 
     case HttpRequest(OPTIONS, uri, _, _, _) if uri.startsWith("/v0") =>
       log.info("OPTIONS request: {}", uri)
-      sender ! HttpResponse(headers=corsHeaders)
+      sender ! HttpResponse(headers=ApiProxy.corsHeaders)
 
     case HttpRequest(GET, "/stop", _, _, _) =>
       sender ! HttpResponse(entity = "Shutting down in 1 second ...")
