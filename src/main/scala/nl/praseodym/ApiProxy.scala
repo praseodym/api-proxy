@@ -25,12 +25,9 @@ object ApiProxy {
   import system.log
 
   val system = ActorSystem("ApiProxy")
-
   val corsHeaders = List(RawHeader("Access-Control-Allow-Origin", "*"),
     RawHeader("Access-Control-Allow-Headers", "X-Requested-With"))
-
-//  val cache: Cache[HttpResponse] = LruCache(timeToLive = 5 minutes)
-  val cache: Cache[HttpResponse] = LruCache()
+  val cache: Cache[HttpResponse] = LruCache() // (timeToLive = 5 minutes)
 
   def getCached(uri: String): Future[HttpResponse] = cache.fromFuture(uri) {
     getAndRewrite(uri)
@@ -65,13 +62,13 @@ object ApiProxy {
     }
     response onComplete {
       case Success(response) =>
-//        log.info(
-//          """|Response for GET request:
-//            |status : {}
-//            |headers: {}
-//            |body   : {}""".stripMargin,
-//          response.status.value, response.headers.mkString("\n  ", "\n  ", ""), response.entity.asString
-//        )
+        log.debug(
+          """|Response for GET request {}:
+            |status : {}
+            |headers: {}
+            |body   : {}""".stripMargin,
+          uri, response.status.value, response.headers.mkString("\n  ", "\n  ", ""), response.entity.asString
+        )
         log.info("Response: {} {}", response.status.value, uri)
 
       case Failure(error) =>

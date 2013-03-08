@@ -46,7 +46,7 @@ class ApiService extends Actor with SprayActorLogging {
       val client = sender
       getCached(uri) onSuccess { case x => client ! x }
 
-    case HttpRequest(OPTIONS, uri, _, _, _) if uri.startsWith("/v0") =>
+    case HttpRequest(OPTIONS, uri, _, _, _) =>
       log.info("OPTIONS request: {}", uri)
       sender ! HttpResponse(headers=ApiProxy.corsHeaders)
 
@@ -59,8 +59,9 @@ class ApiService extends Actor with SprayActorLogging {
 
   def primeCache = {
     log.info("Priming cache")
-    List("gebouwen", "faculteiten", "opleidingen/CiTG", "opleidingen/EWI", "opleidingen/BK",
-      "opleidingen/TNW", "opleidingen/3mE").map(x => refreshCached("/v0/" + x))
+    List("gebouwen", "gebouwen/?computerlokaal=true", "werkplekken/23", "werkplekken/31", "werkplekken/32",
+      "werkplekken/35", "werkplekken/62", "werkplekken/66", "faculteiten", "opleidingen/CiTG", "opleidingen/EWI",
+      "opleidingen/BK", "opleidingen/TNW", "opleidingen/3mE").map(x => refreshCached("/v0/" + x))
   }
 
   def statsPresentation(s: HttpServer.Stats) = HttpResponse(
