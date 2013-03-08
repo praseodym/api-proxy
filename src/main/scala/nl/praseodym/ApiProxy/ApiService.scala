@@ -44,8 +44,8 @@ class ApiService extends Actor with SprayActorLogging {
       context.system.scheduler.schedule(20 seconds, 4 minutes, largeCachePrimerRunnable)
       context.system.scheduler.schedule(1 second, 1 minute, workspaceCachePrimerRunnable)
 
-    case HttpRequest(GET, uri, _, _, _) if uri.startsWith("/v0") =>
-      log.info("Proxy request: {}", uri)
+    case HttpRequest(GET, uri, headers, _, _) if uri.startsWith("/v0") =>
+      log.info("Proxy request: {}\n\tHeaders: {}", uri, headers)
       val client = sender
       getCached(uri) onSuccess { case x => client ! x }
 

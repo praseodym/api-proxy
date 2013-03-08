@@ -9,6 +9,6 @@ object Main extends App with SprayCanHttpServerApp {
   val handler = system.actorOf(Props[ApiService])
 
   // create a new HttpServer using our handler and tell it where to bind to
-  newHttpServer(handler) ! Bind(interface = "localhost", port = 8080)
+  newHttpServer(handler) ! Bind(interface = "0.0.0.0", port = 8080)
 
 }
