@@ -14,12 +14,12 @@ import scala.language.postfixOps
 import ApiProxy._
 import java.lang.Runnable
 import spray.http.HttpResponse
-import nl.praseodym.ApiProxy
 
 class ApiService extends Actor with SprayActorLogging {
   implicit val timeout = Timeout(2 seconds)
   
-  val cachePrimerRunnable = new Runnable { def run() = primeCache }
+  val largeCachePrimerRunnable = new Runnable { def run() = primeLargeCache }
+  val workspaceCachePrimerRunnable = new Runnable { def run() = primeWorkspaceCache }
 
   def receive = {
     case HttpRequest(GET, "/server-stats", _, _, _) =>
@@ -36,11 +36,13 @@ class ApiService extends Actor with SprayActorLogging {
 
     case HttpRequest(GET, "/prime-cache", _, _, _) =>
       sender ! HttpResponse(entity = "Priming cache ...")
-      context.system.scheduler.scheduleOnce(1 seconds, cachePrimerRunnable)
+      context.system.scheduler.scheduleOnce(20 seconds, largeCachePrimerRunnable)
+      context.system.scheduler.scheduleOnce(1 second, workspaceCachePrimerRunnable)
 
     case HttpRequest(GET, "/keep-warm", _, _, _) =>
       sender ! HttpResponse(entity = "Alright.")
-      context.system.scheduler.schedule(1 seconds, 4 minutes, cachePrimerRunnable)
+      context.system.scheduler.schedule(20 seconds, 4 minutes, largeCachePrimerRunnable)
+      context.system.scheduler.schedule(1 second, 1 minute, workspaceCachePrimerRunnable)
 
     case HttpRequest(GET, uri, _, _, _) if uri.startsWith("/v0") =>
       log.info("Proxy request: {}", uri)
@@ -53,16 +55,21 @@ class ApiService extends Actor with SprayActorLogging {
 
     case HttpRequest(GET, "/stop", _, _, _) =>
       sender ! HttpResponse(entity = "Shutting down in 1 second ...")
-      context.system.scheduler.scheduleOnce(1 seconds, new Runnable { def run() { context.system.shutdown() } })
+      context.system.scheduler.scheduleOnce(1 second, new Runnable { def run() { context.system.shutdown() } })
 
     case _: HttpRequest => sender ! HttpResponse(status = 404, entity = "Unknown resource!")
   }
 
-  def primeCache = {
-    log.info("Priming cache")
-    List("gebouwen", "gebouwen/?computerlokaal=true", "werkplekken/23", "werkplekken/31", "werkplekken/32",
-      "werkplekken/35", "werkplekken/62", "werkplekken/66", "faculteiten", "opleidingen/CiTG", "opleidingen/EWI",
-      "opleidingen/BK", "opleidingen/TNW", "opleidingen/3mE").map(x => refreshCached("/v0/" + x))
+  def primeLargeCache = {
+    log.info("Priming large cache")
+    List("gebouwen", "faculteiten", "opleidingen/CiTG", "opleidingen/EWI", "opleidingen/BK",
+      "opleidingen/TNW", "opleidingen/3mE").map(x => refreshCached("/v0/" + x))
+  }
+
+  def primeWorkspaceCache = {
+    log.info("Priming workspace cache")
+    List("gebouwen/?computerlokaal=true", "werkplekken/23", "werkplekken/31", "werkplekken/32",
+      "werkplekken/35", "werkplekken/62", "werkplekken/66").map(x => refreshCached("/v0/" + x))
   }
 
   def statsPresentation(s: HttpServer.Stats) = HttpResponse(
