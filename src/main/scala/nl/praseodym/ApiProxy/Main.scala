@@ -1,4 +1,4 @@
-package nl.praseodym
+package nl.praseodym.ApiProxy
 
 import spray.can.server.SprayCanHttpServerApp
 import akka.actor.Props

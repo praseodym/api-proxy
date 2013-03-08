@@ -1,4 +1,4 @@
-package nl.praseodym
+package nl.praseodym.ApiProxy
 
 import scala.concurrent.duration._
 import akka.pattern.ask
@@ -14,6 +14,7 @@ import scala.language.postfixOps
 import ApiProxy._
 import java.lang.Runnable
 import spray.http.HttpResponse
+import nl.praseodym.ApiProxy
 
 class ApiService extends Actor with SprayActorLogging {
   implicit val timeout = Timeout(2 seconds)

@@ -1,4 +1,4 @@
-package nl.praseodym
+package nl.praseodym.ApiProxy
 
 import spray.caching.{LruCache, Cache}
 import scala.concurrent.Future
@@ -22,10 +22,9 @@ import scala.Some
 import spray.http.CacheDirectives._
 
 object ApiProxy {
-  import system.dispatcher
-  import system.log
+  import Main.system.dispatcher
+  import Main.system.log
 
-  val system = ActorSystem("ApiProxy")
   val corsHeaders = List(RawHeader("Access-Control-Allow-Origin", "*"),
     RawHeader("Access-Control-Allow-Headers", "X-Requested-With"), `Cache-Control`(`max-age`(30)))
   val cache: Cache[HttpResponse] = LruCache() // (timeToLive = 5 minutes)
@@ -54,7 +53,7 @@ object ApiProxy {
   }
 
   implicit val timeout: Timeout = 22 seconds
-  val httpClient = system.actorOf(Props(new HttpClient), "http-client")
+  val httpClient = Main.system.actorOf(Props(new HttpClient), "http-client")
 
   def getFromApi(uri: String): Future[HttpResponse] = {
     val pipeline = sendReceive(httpClient)
