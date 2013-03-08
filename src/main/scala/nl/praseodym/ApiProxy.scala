@@ -5,12 +5,11 @@ import scala.util.{Success, Failure}
 import scala.concurrent.Future
 import scala.concurrent.duration._
 import akka.actor._
-import spray.client.{HttpHostConnector, HttpClient}
-import spray.http._
+import spray.client.HttpClient
 import akka.util.Timeout
-import HttpMethods._
 import spray.client.pipelining._
 import spray.http._
+import scala.language.postfixOps
 
 object ApiProxy {
   import system.dispatcher
@@ -18,14 +17,22 @@ object ApiProxy {
 
   val system = ActorSystem("ApiProxy")
 
-  // and a Cache for its result type
+//  val cache: Cache[HttpResponse] = LruCache(timeToLive = 5 minutes)
   val cache: Cache[HttpResponse] = LruCache()
 
   def getCached(uri: String): Future[HttpResponse] = cache.fromFuture(uri) {
     getFromApi(uri)
   }
 
-  implicit val timeout: Timeout = 15 seconds span
+  def refreshCached(uri: String) =
+    getFromApi(uri).onSuccess {
+      case response: HttpResponse => {
+        cache.remove(uri)
+        cache(uri)(response)
+      }
+    }
+
+  implicit val timeout: Timeout = 22 seconds
   val httpClient = system.actorOf(Props(new HttpClient), "http-client")
 
   def getFromApi(uri: String): Future[HttpResponse] = {
@@ -45,7 +52,7 @@ object ApiProxy {
         log.info("Response: {} {}", response.status.value, uri)
 
       case Failure(error) =>
-        log.error(error, "Couldn't get from API.")
+        log.error(error, "Couldn't get from API [{}]", uri)
     }
     response
   }

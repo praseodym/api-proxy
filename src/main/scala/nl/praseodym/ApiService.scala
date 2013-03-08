@@ -10,17 +10,25 @@ import spray.util._
 import spray.http._
 import HttpMethods._
 import MediaTypes._
-import spray.http.HttpResponse
 import scala.language.postfixOps
 import ApiProxy._
 import java.lang.Runnable
+import spray.http.HttpHeaders._
+import spray.http.HttpHeaders.RawHeader
+import scala.Some
+import spray.http.HttpCharsets._
+import spray.http.HttpHeaders.RawHeader
+import scala.Some
+import spray.http.HttpResponse
+import spray.http.HttpHeaders.RawHeader
+import scala.Some
 
 class ApiService extends Actor with SprayActorLogging {
-//  import system.dispatcher
-  
   implicit val timeout = Timeout(2 seconds)
   
-  val primeCacheRunnable = new Runnable { def run() = primeCache }
+  val cachePrimerRunnable = new Runnable { def run() = primeCache }
+  val corsHeaders = List(RawHeader("Access-Control-Allow-Origin", "*"),
+    RawHeader("Access-Control-Allow-Headers", "X-Requested-With"))
 
   def receive = {
     case HttpRequest(GET, "/server-stats", _, _, _) =>
@@ -37,28 +45,41 @@ class ApiService extends Actor with SprayActorLogging {
 
     case HttpRequest(GET, "/prime-cache", _, _, _) =>
       sender ! HttpResponse(entity = "Priming cache ...")
-      context.system.scheduler.scheduleOnce(1 second span, primeCacheRunnable)
+      context.system.scheduler.scheduleOnce(1 seconds, cachePrimerRunnable)
 
     case HttpRequest(GET, "/keep-warm", _, _, _) =>
       sender ! HttpResponse(entity = "Alright.")
-      context.system.scheduler.schedule(1 second span, 5 minute span, primeCacheRunnable)
+      context.system.scheduler.schedule(1 seconds, 4 minutes, cachePrimerRunnable)
 
     case HttpRequest(GET, uri, _, _, _) if uri.startsWith("/v0") =>
       log.info("Proxy request: {}", uri)
       val client = sender
       getCached(uri).onSuccess {
-        case x: HttpResponse => client ! x
+        case x: HttpResponse =>
+          val contentType = x.headers.mapFind {
+            case `Content-Type`(t) => Some(t)
+            case _ => None
+          }.getOrElse(ContentType(`text/plain`, `US-ASCII`)) // RFC 2046 section 5.1
+          val headers = `Content-Type`(contentType) :: corsHeaders
+          client ! x.withHeaders(headers)
       }
+
+    case HttpRequest(OPTIONS, uri, _, _, _) if uri.startsWith("/v0") =>
+      log.info("OPTIONS request: {}", uri)
+      sender ! HttpResponse(headers=corsHeaders)
 
     case HttpRequest(GET, "/stop", _, _, _) =>
       sender ! HttpResponse(entity = "Shutting down in 1 second ...")
-      context.system.scheduler.scheduleOnce(1 second span, new Runnable { def run() { context.system.shutdown() } })
+      context.system.scheduler.scheduleOnce(1 seconds, new Runnable { def run() { context.system.shutdown() } })
 
     case _: HttpRequest => sender ! HttpResponse(status = 404, entity = "Unknown resource!")
   }
 
-  def primeCache = List("gebouwen", "faculteiten", "opleidingen/CiTG", "opleidingen/EWI", "opleidingen/BK",
-      "opleidingen/TNW", "opleidingen/3mE").map(x => getCached("/v0/" + x))
+  def primeCache = {
+    log.info("Priming cache")
+    List("gebouwen", "faculteiten", "opleidingen/CiTG", "opleidingen/EWI", "opleidingen/BK",
+      "opleidingen/TNW", "opleidingen/3mE").map(x => refreshCached("/v0/" + x))
+  }
 
   def statsPresentation(s: HttpServer.Stats) = HttpResponse(
     entity = HttpBody(`text/html`,
