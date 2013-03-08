@@ -58,7 +58,7 @@ object ApiProxy {
   def getFromApi(uri: String): Future[HttpResponse] = {
     val pipeline = sendReceive(httpClient)
     val response = pipeline {
-      Get("https://127.0.0.1:57256" + uri)
+      Get("https://api.tudelft.nl" + uri)
     }
     response onComplete {
       case Success(response) =>
